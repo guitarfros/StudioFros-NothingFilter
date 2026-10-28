@@ -15,14 +15,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os_name: Linux,   os: ubuntu-latest  }
+          - { os_name: Linux,   os: ubuntu-24.04   }
           - { os_name: Windows, os: windows-latest }
-          - { os_name: macOS,   os: macos-latest   }
+          - { os_name: macOS,   os: macos-15       }
     defaults:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
@@ -49,7 +49,7 @@ jobs:
         if: runner.os == 'macOS'
         run: codesign --force --deep --sign - dist/*.vst3
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: StudioFros-NothingFilter-${{ matrix.os_name }}
           path: dist/
@@ -62,7 +62,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
       - name: Zip each platform
@@ -70,7 +70,7 @@ jobs:
           cd artifacts
           for d in */; do (cd "$d" && zip -qr "../${d%/}.zip" .); done
           ls -la
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: artifacts/*.zip
           generate_release_notes: true
