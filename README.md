@@ -32,8 +32,12 @@ Funk Chop, Subtle Filter, Sharp Peak, Wide Sweep, Thin Treble, Modern Smooth, Pe
 Pedal Modern, Rhythm Wah, Muted Half, Honk. They live in `Source/FactoryPresets.h`; add your own there.
 
 ## Download
-Every push is built for the three systems by GitHub Actions. Download the zip for your system from the
-**Actions** tab (artifacts) or, for tagged versions, from **Releases**.
+Go to the **Releases** tab:
+- **Latest build (main)**: rebuilt automatically on every push to `main` (pre-release, tag `nightly`).
+- **vX.Y.Z**: versioned releases, created by pushing a tag (see below).
+
+Each release has one zip per system (Linux, Windows, macOS universal) containing the `.vst3`.
+Builds of every commit are also available in the **Actions** tab (artifacts).
 
 ## Build from source
 Requirements: a C++17 compiler, CMake >= 3.22 and git. JUCE is found automatically (`./JUCE`, `../JUCE`,
@@ -87,4 +91,4 @@ The panel and knob artwork lives in `Assets/` and is embedded at build time. See
 1. Create the GitHub repository and push this folder.
 2. Replace `OWNER/REPO` in the badge at the top of this README.
 3. Check the **Actions** tab: Linux, Windows and macOS builds should be green.
-4. To publish a release, create a tag: `git tag v0.1.0 && git push --tags` (zips for all three systems are attached automatically).
+4. Every push to `main` updates the **Latest build (main)** release automatically. For a versioned release, create a tag: `git tag v0.1.0 && git push --tags` (zips for all three systems are attached automatically).
