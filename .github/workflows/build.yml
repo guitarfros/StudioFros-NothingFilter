@@ -17,7 +17,7 @@ jobs:
         include:
           - { os_name: Linux,   os: ubuntu-24.04   }
           - { os_name: Windows, os: windows-latest }
-          - { os_name: macOS,   os: macos-15       }
+          - { os_name: macOS,   os: macos-15-intel }   # Intel runner: separate capacity pool; still builds a universal (arm64 + x86_64) binary
     defaults:
       run:
         shell: bash
@@ -45,6 +45,16 @@ jobs:
           find build -maxdepth 5 -name "*.vst3" -type d -exec cp -R {} dist/ \;
           ls -la dist
 
+      - name: Verify universal binary (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          for f in dist/*.vst3/Contents/MacOS/*; do
+            archs="$(lipo -archs "$f")"
+            echo "$f -> $archs"
+            case "$archs" in *arm64*) ;; *) echo "arm64 missing"; exit 1;; esac
+            case "$archs" in *x86_64*) ;; *) echo "x86_64 missing"; exit 1;; esac
+          done
+
       - name: Ad-hoc sign (macOS)
         if: runner.os == 'macOS'
         run: codesign --force --deep --sign - dist/*.vst3
@@ -56,21 +66,53 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Publishes the zips in the "Releases" tab:
+    #  - every push to main/master  -> pre-release "nightly" (always the latest build)
+    #  - every tag v*               -> normal, versioned release
+    if: ${{ !cancelled() && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v6
+
       - uses: actions/download-artifact@v8
         with:
           path: artifacts
+
+      - name: Decide release name
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "TAG=$GITHUB_REF_NAME" >> "$GITHUB_ENV"
+            echo "PRERELEASE=false" >> "$GITHUB_ENV"
+          else
+            echo "TAG=nightly" >> "$GITHUB_ENV"
+            echo "PRERELEASE=true" >> "$GITHUB_ENV"
+          fi
+
       - name: Zip each platform
         run: |
           cd artifacts
-          for d in */; do (cd "$d" && zip -qr "../${d%/}.zip" .); done
+          for d in */; do
+            name="${d%/}"
+            os="${name##*-}"
+            (cd "$d" && zip -qr "../StudioFros-NothingFilter-${TAG}-${os}.zip" .)
+          done
           ls -la
+
+      - name: Move the nightly tag to this commit
+        if: env.TAG == 'nightly'
+        run: |
+          git tag -f nightly "$GITHUB_SHA"
+          git push -f origin nightly
+
       - uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ env.TAG }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ env.TAG == 'nightly' && 'Latest build (main)' || env.TAG }}
+          prerelease: ${{ env.PRERELEASE == 'true' }}
+          generate_release_notes: ${{ env.PRERELEASE != 'true' }}
+          body: ${{ env.TAG == 'nightly' && 'Automatic build of the latest commit on main. Unsigned. Linux, Windows and macOS (universal) VST3 zips.' || '' }}
           files: artifacts/*.zip
-          generate_release_notes: true
